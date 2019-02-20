@@ -419,6 +419,12 @@ class Colormap():
 
 
 # ------------------------------------------------------------------
+  def predefined(self):
+    """List of predefined colormaps"""
+    return self.__predefined__.keys()
+
+
+# ------------------------------------------------------------------
   def invert(self):
     (self.left, self.right) = (self.right, self.left)
     return self

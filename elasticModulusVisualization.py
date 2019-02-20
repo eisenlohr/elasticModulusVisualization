@@ -238,8 +238,10 @@ def x3d_writeData(filename):
   auto = np.max(np.linalg.norm(node,axis=1))
   minimum = np.min(np.linalg.norm(node,axis=1))
 
-  m = colormaps.Colormap(predefined='orientation').invert()
-
+  m = colormaps.Colormap(predefined=args.colormap)
+  if args.invert:
+    m = m.invert()
+    
   output = [
   """
   <html> 
@@ -329,9 +331,15 @@ parser.add_argument("format",
                     help="output file format",
                     choices=['vtk','x3d'])
 parser.add_argument("name", help="output file name")
+parser.add_argument("-c", "--colormap",
+                    help="colormap for visualization",
+                    choices=colormaps.Colormap().predefined(), default='seaweed')
+parser.add_argument("-i", "--invert",
+                    help="invert colormap",
+                    action="store_true")
 parser.add_argument("-N", "--recursion",
                     help="number of recursive refinement steps",
-                    type=int, default=4)
+                    type=int, default=5)
 parser.add_argument("--symmetry",
                     help="crystal structure symmetry",
                     default='isotropic',
