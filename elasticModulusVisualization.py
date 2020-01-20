@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # data structure for unitsphere triangulation
 # global array "connectivity" holding three node indices per triangle
 # global array "node" containing the 3D coordinates
 # global hash "nodeChild" with key made from both parents and child node index as value
 
-from __future__ import print_function
 import sys
 import os
 import argparse
