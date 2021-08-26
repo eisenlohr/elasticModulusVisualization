@@ -12,17 +12,19 @@ import numpy as np
 import vtk
 import colormaps
 
+from pathlib import Path
 
-node = np.array( [ 
-    [ 1.0, 0.0, 0.0], # 0 
+
+node = np.array( [
+    [ 1.0, 0.0, 0.0], # 0
     [-1.0, 0.0, 0.0], # 1
-    [ 0.0, 1.0, 0.0], # 2 
+    [ 0.0, 1.0, 0.0], # 2
     [ 0.0,-1.0, 0.0], # 3
-    [ 0.0, 0.0, 1.0], # 4 
-    [ 0.0, 0.0,-1.0]  # 5                                
+    [ 0.0, 0.0, 1.0], # 4
+    [ 0.0, 0.0,-1.0]  # 5
     ] )
-    
-octahedron = np.array( [ 
+
+octahedron = np.array( [
     [ 0, 2, 4 ],
     [ 2, 1, 4 ],
     [ 1, 3, 4 ],
@@ -49,7 +51,7 @@ def om2ax(om):
   # first get the rotation angle
   t = 0.5*(om.trace()-1.0)
   ax[3] = np.arccos(np.clip(t,-1.0,1.0))
-  
+
   if iszero(ax[3]):
     ax = [ 0.0, 0.0, 1.0, 0.0]
   else:
@@ -59,7 +61,7 @@ def om2ax(om):
     ax[0:3] = np.real(vr[0:3,i])
     diagDelta = np.array([om[1,2]-om[2,1],om[2,0]-om[0,2],om[0,1]-om[1,0]])
     ax[0:3] = np.where(iszero(diagDelta), ax[0:3],np.abs(ax[0:3])*np.sign(-P*diagDelta))
-  
+
   return np.array(ax)
 
 
@@ -83,9 +85,9 @@ def C66toC3333(stiffness):
         C3333[i,j,l,k] = stiffness[a,b]
         C3333[j,i,k,l] = stiffness[a,b]
         C3333[j,i,l,k] = stiffness[a,b]
-        
+
     return C3333
-        
+
 
 def E_hkl3333(S3333,dir):
 
@@ -93,11 +95,10 @@ def E_hkl3333(S3333,dir):
 
 
 def SierpinskySpherical(t,N):
-    # Subdivide the triangle and normalize
-    #  the new points thus generated to lie on the surface of the unit
-    #  sphere.
-    #  input triangle with vertices labeled [0,1,2] as shown
-    #  below will be turned into four new triangles:
+    # Subdivide the triangle and normalize the new points
+    # thus generated to lie on the surface of the unit sphere.
+    # input triangle with vertices labeled [0,1,2] as shown
+    # below will be turned into four new triangles:
     #
     #            Make new (auto normalized) points
     #                 a = (0+1)/2
@@ -110,8 +111,8 @@ def SierpinskySpherical(t,N):
     #    /\    /\       t1 [0,a,c]
     #   /  \  /  \      t2 [a,1,b]
     #  /____\/____\     t3 [c,b,2]
-    # 0=A    a   B=1    t4 [a,b,c] 
-    
+    # 0=A    a   B=1    t4 [a,b,c]
+
     if N > 0:
       a = indexOfChild(t[[0,1]])
       b = indexOfChild(t[[1,2]])
@@ -147,7 +148,7 @@ def C66fromSymmetry(c11=0.0,c12=0.0,c13=0.0,c14=0.0,c15=0.0,c16=0.0,
                     symmetry=None,
                     ):
     """RFS Hearmon, The Elastic Constants of Anisotropic Materials, Reviews of Modern Physics 18 (1946) 409-440"""
-    
+
     C = np.zeros((6,6),dtype=float)
 
     if symmetry in ['isotropic','cubic','tetragonal','hexagonal','orthorhombic','monoclinic','triclinic']:
@@ -161,40 +162,40 @@ def C66fromSymmetry(c11=0.0,c12=0.0,c13=0.0,c14=0.0,c15=0.0,c16=0.0,
       C[3,3] = C[4,4] = C[5,5] = c44 if c44 > 0.0 else C[3,3]
 
     if symmetry in ['tetragonal','hexagonal','orthorhombic','monoclinic','triclinic']:
-      C[2,2]                   = c33 if c33 > 0.0 else C[0,0]
-      C[5,5]                   = c66 if c66 > 0.0 else C[3,3]
+      C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
+      C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
 
       C[0,2] = C[1,2]          = \
-      C[2,0] = C[2,1]          = c13 if c13 > 0.0 else C[0,2]
-      C[0,5]                   = c16 if c16 > 0.0 else 0.0
-      C[5,0]                   = -c16 if c16 > 0.0 else 0.0
+      C[2,0] = C[2,1]          = c13 if c13 and c13 > 0.0 else C[0,2]
+      C[0,5]                   = c16 if c16 and c16 > 0.0 else 0.0
+      C[5,0]                   = -c16 if c16 and c16 > 0.0 else 0.0
 
     if symmetry in ['hexagonal','orthorhombic','monoclinic','triclinic']:
       C[5,5]                   = 0.5*(c11-c12)
 
     if symmetry in ['orthorhombic','monoclinic','triclinic']:
-      C[1,1]                   = c22 if c22 > 0.0 else C[0,0]
-      C[2,2]                   = c33 if c33 > 0.0 else C[0,0]
-      C[4,4]                   = c55 if c55 > 0.0 else C[3,3]
-      C[5,5]                   = c66 if c66 > 0.0 else C[3,3]
-      C[1,2] = C[2,1]          = c23 if c23 > 0.0 else C[1,2]
+      C[1,1]                   = c22 if c22 and c22 > 0.0 else C[0,0]
+      C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
+      C[4,4]                   = c55 if c55 and c55 > 0.0 else C[3,3]
+      C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
+      C[1,2] = C[2,1]          = c23 if c23 and c23 > 0.0 else C[1,2]
 
     if symmetry in ['monoclinic','triclinic']:
-      C[1,5] = C[5,1]          = c26 if c26 > 0.0 else 0.0
-      C[2,5] = C[5,2]          = c36 if c36 > 0.0 else 0.0
-      C[3,4] = C[4,3]          = c45 if c45 > 0.0 else 0.0
+      C[1,5] = C[5,1]          = c26 if c26 and c26 > 0.0 else 0.0
+      C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
+      C[3,4] = C[4,3]          = c45 if c45 and c45 > 0.0 else 0.0
 
     if symmetry in ['triclinic']:
-      C[0,3] = C[3,0]          = c14 if c14 > 0.0 else 0.0
-      C[0,4] = C[4,0]          = c15 if c15 > 0.0 else 0.0
-      C[1,3] = C[3,1]          = c24 if c24 > 0.0 else 0.0
-      C[1,4] = C[4,1]          = c25 if c25 > 0.0 else 0.0
-      C[2,3] = C[3,2]          = c34 if c34 > 0.0 else 0.0
-      C[2,4] = C[4,2]          = c35 if c35 > 0.0 else 0.0
-      C[2,5] = C[5,2]          = c36 if c36 > 0.0 else 0.0
-      C[3,5] = C[5,3]          = c46 if c46 > 0.0 else 0.0
-      C[4,5] = C[5,4]          = c56 if c56 > 0.0 else 0.0
-    
+      C[0,3] = C[3,0]          = c14 if c14 and c14 > 0.0 else 0.0
+      C[0,4] = C[4,0]          = c15 if c15 and c15 > 0.0 else 0.0
+      C[1,3] = C[3,1]          = c24 if c24 and c24 > 0.0 else 0.0
+      C[1,4] = C[4,1]          = c25 if c25 and c25 > 0.0 else 0.0
+      C[2,3] = C[3,2]          = c34 if c34 and c34 > 0.0 else 0.0
+      C[2,4] = C[4,2]          = c35 if c35 and c35 > 0.0 else 0.0
+      C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
+      C[3,5] = C[5,3]          = c46 if c46 and c46 > 0.0 else 0.0
+      C[4,5] = C[5,4]          = c56 if c56 and c56 > 0.0 else 0.0
+
     return C
 
 
@@ -217,15 +218,15 @@ def vtk_writeData(filename):
     for c in range(3):
         triangle.GetPointIds().SetId(c, t[c])
     triangles.InsertNextCell(triangle)
- 
+
   polydata.SetPoints(points)
   polydata.SetPolys(triangles)
- 
+
   writer = vtk.vtkXMLPolyDataWriter()
-  writer.SetFileName(os.path.splitext(filename)[0]+".vtp")
+  writer.SetFileName(str(Path(filename).with_suffix('.'+writer.GetDefaultFileExtension())))
   writer.SetInputData(polydata)
   writer.Write()
-  
+
 
 def x3d_writeData(filename):
 
@@ -240,47 +241,47 @@ def x3d_writeData(filename):
   m = colormaps.Colormap(predefined=args.colormap)
   if args.invert:
     m = m.invert()
-    
+
   output = [
   """
-  <html> 
-    <head> 
+  <html>
+    <head>
       <title>Elastic Tensor visualization</title>
-      <script type='text/javascript' src='http://www.x3dom.org/download/x3dom.js'> </script> 
-      <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/x3dom.css'></link> 
-    </head> 
-    <body> 
-      <h1>Elastic Tensor visualization</h1> 
+      <script type='text/javascript' src='http://www.x3dom.org/download/x3dom.js'> </script>
+      <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/x3dom.css'></link>
+    </head>
+    <body>
+      <h1>Elastic Tensor visualization</h1>
       <p>
       Range goes from {min} to {max}
       </p>
-      <x3d width='600px' height='600px'> 
+      <x3d width='600px' height='600px'>
       <scene>
         <viewpoint position='{view} {view} {view}' orientation='{axis[0]} {axis[1]} {axis[2]} {angle}'></viewpoint>
-        <transform translation='{scale} 0 0' rotation='0 0 1 1.5708'> 
-        <shape> 
-          <appearance> 
-          <material diffuseColor='1 0 0'></material> 
-          </appearance> 
-          <cylinder radius='{radius}' height='{height}'></cylinder> 
-        </shape> 
-        </transform> 
-        <transform translation='0 {scale} 0'> 
-        <shape> 
-          <appearance> 
-          <material diffuseColor='0 1 0'></material> 
-          </appearance> 
-          <cylinder radius='{radius}' height='{height}'></cylinder> 
-        </shape> 
-        </transform> 
-        <transform translation='0 0 {scale}' rotation='1 0 0 1.5708'> 
-        <shape> 
-          <appearance> 
-          <material diffuseColor='0 0 1'></material> 
-          </appearance> 
-          <cylinder radius='{radius}' height='{height}'></cylinder> 
-        </shape> 
-        </transform> 
+        <transform translation='{scale} 0 0' rotation='0 0 1 1.5708'>
+        <shape>
+          <appearance>
+          <material diffuseColor='1 0 0'></material>
+          </appearance>
+          <cylinder radius='{radius}' height='{height}'></cylinder>
+        </shape>
+        </transform>
+        <transform translation='0 {scale} 0'>
+        <shape>
+          <appearance>
+          <material diffuseColor='0 1 0'></material>
+          </appearance>
+          <cylinder radius='{radius}' height='{height}'></cylinder>
+        </shape>
+        </transform>
+        <transform translation='0 0 {scale}' rotation='1 0 0 1.5708'>
+        <shape>
+          <appearance>
+          <material diffuseColor='0 0 1'></material>
+          </appearance>
+          <cylinder radius='{radius}' height='{height}'></cylinder>
+        </shape>
+        </transform>
 
         <shape>
           <appearance>
@@ -317,30 +318,30 @@ def x3d_writeData(filename):
         </shape>
       </scene>
     </x3d>
-  </body> 
-  </html>           
+  </body>
+  </html>
   ''']
 
-  with open(os.path.splitext(filename)[0]+".html","w") as f:
+  with open(Path(filename).with_suffix('.html'),'w') as f:
     f.write('\n'.join(output) + '\n')
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("format", 
-                    help="output file format",
+parser.add_argument('format',
+                    help='output file format',
                     choices=['vtk','x3d'])
-parser.add_argument("name", help="output file name")
-parser.add_argument("-c", "--colormap",
-                    help="colormap for visualization",
+parser.add_argument('name', help='output file name')
+parser.add_argument('-c', '--colormap',
+                    help='colormap for visualization',
                     choices=colormaps.Colormap().predefined(), default='seaweed')
-parser.add_argument("-i", "--invert",
-                    help="invert colormap",
-                    action="store_true")
-parser.add_argument("-N", "--recursion",
-                    help="number of recursive refinement steps",
+parser.add_argument('-i', '--invert',
+                    help='invert colormap',
+                    action='store_true')
+parser.add_argument('-N', '--recursion',
+                    help='number of recursive refinement steps',
                     type=int, default=5)
-parser.add_argument("--symmetry",
-                    help="crystal structure symmetry",
+parser.add_argument('--symmetry',
+                    help='crystal structure symmetry',
                     default='isotropic',
                     choices=['triclinic',
                              'monoclinic',
@@ -352,7 +353,7 @@ parser.add_argument("--symmetry",
                             ])
 for i in range(6):
   for j in range(i,6):
-    parser.add_argument("--c{}{}".format(i+1,j+1), type=float, required=i==0 and j<2)
+    parser.add_argument(f'--c{i+1}{j+1}', type=float, required=i==0 and j<2)
 
 args = parser.parse_args()
 
