@@ -1,13 +1,14 @@
 # elasticModulusVisualization
 Generate either VTK or X3D representation of elastic modulus for different lattice symmetries.
 
-![Pb](examples/Pb_47_39_14.png)
-![Al](examples/Al_103_53_28.png)
-![Au](examples/Au_189_159_42.png)
-![Cu](examples/Cu_156_106_75.png)
-![Fe](examples/Fe_237_141_69.png)
-![Nb](examples/Nb_246_139_29.png)
-![Mo](examples/Mo_450_173_125.png)
+<img src="examples/Pb_47_39_14.png" alt="Pb" width="30%" />
+<img src="examples/Pb_47_39_14.png" alt="Pb" width="30%" />
+<img src="examples/Al_103_53_28.png" alt="Al" width="30%" />
+<img src="examples/Au_189_159_42.png" alt="Au" width="30%" />
+<img src="examples/Cu_156_106_75.png" alt="Cu" width="30%" />
+<img src="examples/Fe_237_141_69.png" alt="Fe" width="30%" />
+<img src="examples/Nb_246_139_29.png" alt="Nb" width="30%" />
+<img src="examples/Mo_450_173_125.png" alt="Mo" width="30%" />
 
 
 ```
