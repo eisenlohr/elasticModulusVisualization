@@ -1,7 +1,14 @@
 # elasticModulusVisualization
 Generate either VTK or X3D representation of elastic modulus for different lattice symmetries.
 
-![](examples/cubic_100_70_40.png)
+![Pb](examples/Pb_47_39_14.png)
+![Al](examples/Al_103_53_28.png)
+![Au](examples/Au_189_159_42.png)
+![Cu](examples/Cu_156_106_75.png)
+![Fe](examples/Fe_237_141_69.png)
+![Nb](examples/Nb_246_139_29.png)
+![Mo](examples/Mo_450_173_125.png)
+
 
 ```
 usage: elasticModulusVisualization.py [-h]
