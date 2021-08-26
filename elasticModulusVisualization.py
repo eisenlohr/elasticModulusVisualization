@@ -44,7 +44,7 @@ def isone(a):
 
 
 def om2ax(om):
-  """Orientation matrix to axis angle"""
+  """Orientation matrix to axis--angle."""
   P=-1
   ax=np.empty(4)
 
@@ -66,13 +66,44 @@ def om2ax(om):
 
 
 def inverse66(M66):
-    """ideas from http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.622.4732&rep=rep1&type=pdf"""
+    """
+    Invert tensor given in Voigt notation.
+
+    Parameters
+    ----------
+    M66 : numpy.array (6,6)
+        Tensor in Voigt notation.
+
+    Returns
+    -------
+    I66 : numpy.array (6,6)
+        Inverse of M66 in Voigt notation.
+
+    References
+    ----------
+    http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.622.4732&rep=rep1&type=pdf
+
+    """
     W = np.identity(6)
     W[3,3] = W[4,4] = W[5,5] = 0.5
     return np.einsum('ij,jk,kl',W,np.linalg.inv(M66),W)
 
 
 def C66toC3333(stiffness):
+    """
+    Expand stiffness tensor from contracted Voigt notation to full rank four representation.
+
+    Parameters
+    ----------
+    stiffness : numpy.array (6,6)
+        Stiffness tensor in Voigt notation.
+
+    Returns
+    -------
+    C3333 : numpy.array (3,3,3,3)
+        Rank four stiffness tensor.
+
+    """
     index = np.array([[0,0],[1,1],[2,2,],[1,2],[0,2],[0,1]])
     C3333 = np.zeros((3,3,3,3))
     for a in range(6):
@@ -147,183 +178,218 @@ def C66fromSymmetry(c11=0.0,c12=0.0,c13=0.0,c14=0.0,c15=0.0,c16=0.0,
                                                             c66=0.0,
                     symmetry=None,
                     ):
-    """RFS Hearmon, The Elastic Constants of Anisotropic Materials, Reviews of Modern Physics 18 (1946) 409-440"""
+    """
+    Return symmetrized stiffness tensor based on given component values and crystal symmetry.
 
+    Parameters
+    ----------
+    cAB : float , optional
+        Value of stiffness tensor in Voigt notation at index A,B.
+    symmetry : str , optional
+        Crystal lattice symmetry.
+
+    Returns
+    -------
+    C66 : numpy.array (6,6)
+        Symmetrized stiffness tensor in Voigt notation.
+
+    References
+    ----------
+    RFS Hearmon, The Elastic Constants of Anisotropic Materials, Reviews of Modern Physics 18 (1946) 409-440
+
+    """
     C = np.zeros((6,6),dtype=float)
 
     if symmetry in ['isotropic','cubic','tetragonal','hexagonal','orthorhombic','monoclinic','triclinic']:
-      C[0,0] = C[1,1] = C[2,2] = c11
-      C[3,3] = C[4,4] = C[5,5] = 0.5*(c11-c12)
+        C[0,0] = C[1,1] = C[2,2] = c11
+        C[3,3] = C[4,4] = C[5,5] = 0.5*(c11-c12)
 
-      C[0,1] = C[0,2] = C[1,2] = \
-      C[1,0] = C[2,0] = C[2,1] = c12
+        C[0,1] = C[0,2] = C[1,2] = \
+        C[1,0] = C[2,0] = C[2,1] = c12
 
     if symmetry in ['cubic','tetragonal','hexagonal','orthorhombic','monoclinic','triclinic']:
-      C[3,3] = C[4,4] = C[5,5] = c44 if c44 > 0.0 else C[3,3]
+        C[3,3] = C[4,4] = C[5,5] = c44 if c44 > 0.0 else C[3,3]
 
     if symmetry in ['tetragonal','hexagonal','orthorhombic','monoclinic','triclinic']:
-      C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
-      C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
+        C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
+        C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
 
-      C[0,2] = C[1,2]          = \
-      C[2,0] = C[2,1]          = c13 if c13 and c13 > 0.0 else C[0,2]
-      C[0,5]                   = c16 if c16 and c16 > 0.0 else 0.0
-      C[5,0]                   = -c16 if c16 and c16 > 0.0 else 0.0
+        C[0,2] = C[1,2]          = \
+        C[2,0] = C[2,1]          = c13 if c13 and c13 > 0.0 else C[0,2]
+        C[0,5]                   = c16 if c16 and c16 > 0.0 else 0.0
+        C[5,0]                   = -c16 if c16 and c16 > 0.0 else 0.0
 
     if symmetry in ['hexagonal','orthorhombic','monoclinic','triclinic']:
-      C[5,5]                   = 0.5*(c11-c12)
+        C[5,5]                   = 0.5*(c11-c12)
 
     if symmetry in ['orthorhombic','monoclinic','triclinic']:
-      C[1,1]                   = c22 if c22 and c22 > 0.0 else C[0,0]
-      C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
-      C[4,4]                   = c55 if c55 and c55 > 0.0 else C[3,3]
-      C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
-      C[1,2] = C[2,1]          = c23 if c23 and c23 > 0.0 else C[1,2]
+        C[1,1]                   = c22 if c22 and c22 > 0.0 else C[0,0]
+        C[2,2]                   = c33 if c33 and c33 > 0.0 else C[0,0]
+        C[4,4]                   = c55 if c55 and c55 > 0.0 else C[3,3]
+        C[5,5]                   = c66 if c66 and c66 > 0.0 else C[3,3]
+        C[1,2] = C[2,1]          = c23 if c23 and c23 > 0.0 else C[1,2]
 
     if symmetry in ['monoclinic','triclinic']:
-      C[1,5] = C[5,1]          = c26 if c26 and c26 > 0.0 else 0.0
-      C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
-      C[3,4] = C[4,3]          = c45 if c45 and c45 > 0.0 else 0.0
+        C[1,5] = C[5,1]          = c26 if c26 and c26 > 0.0 else 0.0
+        C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
+        C[3,4] = C[4,3]          = c45 if c45 and c45 > 0.0 else 0.0
 
     if symmetry in ['triclinic']:
-      C[0,3] = C[3,0]          = c14 if c14 and c14 > 0.0 else 0.0
-      C[0,4] = C[4,0]          = c15 if c15 and c15 > 0.0 else 0.0
-      C[1,3] = C[3,1]          = c24 if c24 and c24 > 0.0 else 0.0
-      C[1,4] = C[4,1]          = c25 if c25 and c25 > 0.0 else 0.0
-      C[2,3] = C[3,2]          = c34 if c34 and c34 > 0.0 else 0.0
-      C[2,4] = C[4,2]          = c35 if c35 and c35 > 0.0 else 0.0
-      C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
-      C[3,5] = C[5,3]          = c46 if c46 and c46 > 0.0 else 0.0
-      C[4,5] = C[5,4]          = c56 if c56 and c56 > 0.0 else 0.0
+        C[0,3] = C[3,0]          = c14 if c14 and c14 > 0.0 else 0.0
+        C[0,4] = C[4,0]          = c15 if c15 and c15 > 0.0 else 0.0
+        C[1,3] = C[3,1]          = c24 if c24 and c24 > 0.0 else 0.0
+        C[1,4] = C[4,1]          = c25 if c25 and c25 > 0.0 else 0.0
+        C[2,3] = C[3,2]          = c34 if c34 and c34 > 0.0 else 0.0
+        C[2,4] = C[4,2]          = c35 if c35 and c35 > 0.0 else 0.0
+        C[2,5] = C[5,2]          = c36 if c36 and c36 > 0.0 else 0.0
+        C[3,5] = C[5,3]          = c46 if c46 and c46 > 0.0 else 0.0
+        C[4,5] = C[5,4]          = c56 if c56 and c56 > 0.0 else 0.0
 
     return C
 
 
 def vtk_writeData(filename):
+    """
+    Write a VTK PolyData object of the directional elastic modulus.
 
-  polydata = vtk.vtkPolyData()
-  triangles = vtk.vtkCellArray()
-  triangle = vtk.vtkTriangle()
-  magnitude = vtk.vtkDoubleArray()
-  magnitude.SetNumberOfComponents(1)
-  magnitude.SetName("E");
+    Parameters
+    ----------
+    filename : str
+        Name of output file. Extension will be replaced by VTK default.
 
-  points = vtk.vtkPoints()
-  for p in node:
-    points.InsertNextPoint(*p)
-    magnitude.InsertNextValue(np.linalg.norm(p))
-    polydata.GetPointData().AddArray(magnitude)
+    """
+    polydata = vtk.vtkPolyData()
+    triangles = vtk.vtkCellArray()
+    triangle = vtk.vtkTriangle()
+    magnitude = vtk.vtkDoubleArray()
+    magnitude.SetNumberOfComponents(1)
+    magnitude.SetName("E");
 
-  for t in connectivity:
-    for c in range(3):
-        triangle.GetPointIds().SetId(c, t[c])
-    triangles.InsertNextCell(triangle)
+    points = vtk.vtkPoints()
+    for p in node:
+        points.InsertNextPoint(*p)
+        magnitude.InsertNextValue(np.linalg.norm(p))
+        polydata.GetPointData().AddArray(magnitude)
 
-  polydata.SetPoints(points)
-  polydata.SetPolys(triangles)
+    for t in connectivity:
+        for c in range(3):
+            triangle.GetPointIds().SetId(c, t[c])
+        triangles.InsertNextCell(triangle)
 
-  writer = vtk.vtkXMLPolyDataWriter()
-  writer.SetFileName(str(Path(filename).with_suffix('.'+writer.GetDefaultFileExtension())))
-  writer.SetInputData(polydata)
-  writer.Write()
+    polydata.SetPoints(points)
+    polydata.SetPolys(triangles)
+
+    writer = vtk.vtkXMLPolyDataWriter()
+    writer.SetFileName(str(Path(filename).with_suffix('.'+writer.GetDefaultFileExtension())))
+    writer.SetInputData(polydata)
+    writer.Write()
 
 
 def x3d_writeData(filename):
+    """
+    Write a HTML page that interactively visualizes the directional elastic modulus.
 
-  ax = om2ax(np.array([[-1., 1., 0.],
-                       [-1.,-1., 2.],
-                       [ 1., 1., 1.],
-                      ])/np.array([np.sqrt(2.),np.sqrt(6.),np.sqrt(3.)])[:,None])
+    Parameters
+    ----------
+    filename : str
+        Name of output file. Extension will be replaced by 'html'.
 
-  auto = np.max(np.linalg.norm(node,axis=1))
-  minimum = np.min(np.linalg.norm(node,axis=1))
+    """
+    ax = om2ax(np.array([[-1., 1., 0.],
+                         [-1.,-1., 2.],
+                         [ 1., 1., 1.],
+                        ])/np.array([np.sqrt(2.),np.sqrt(6.),np.sqrt(3.)])[:,None])
 
-  m = colormaps.Colormap(predefined=args.colormap)
-  if args.invert:
-    m = m.invert()
+    auto = np.max(np.linalg.norm(node,axis=1))
+    minimum = np.min(np.linalg.norm(node,axis=1))
 
-  output = [
-  """
-  <html>
-    <head>
-      <title>Elastic Tensor visualization</title>
-      <script type='text/javascript' src='http://www.x3dom.org/download/x3dom.js'> </script>
-      <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/x3dom.css'></link>
-    </head>
-    <body>
-      <h1>Elastic Tensor visualization</h1>
-      <p>
-      Range goes from {min} to {max}
-      </p>
-      <x3d width='600px' height='600px'>
-      <scene>
-        <viewpoint position='{view} {view} {view}' orientation='{axis[0]} {axis[1]} {axis[2]} {angle}'></viewpoint>
-        <transform translation='{scale} 0 0' rotation='0 0 1 1.5708'>
-        <shape>
-          <appearance>
-          <material diffuseColor='1 0 0'></material>
-          </appearance>
-          <cylinder radius='{radius}' height='{height}'></cylinder>
-        </shape>
-        </transform>
-        <transform translation='0 {scale} 0'>
-        <shape>
-          <appearance>
-          <material diffuseColor='0 1 0'></material>
-          </appearance>
-          <cylinder radius='{radius}' height='{height}'></cylinder>
-        </shape>
-        </transform>
-        <transform translation='0 0 {scale}' rotation='1 0 0 1.5708'>
-        <shape>
-          <appearance>
-          <material diffuseColor='0 0 1'></material>
-          </appearance>
-          <cylinder radius='{radius}' height='{height}'></cylinder>
-        </shape>
-        </transform>
+    m = colormaps.Colormap(predefined=args.colormap)
+    if args.invert:
+        m = m.invert()
 
-        <shape>
-          <appearance>
-          <material diffuseColor="0.3 0.6 0.2"
-                    ambientIntensity="0.167"
-                    shininess="0.17"
-                    transparency="0.0"
-           />
-          </appearance>
+    output = [
+    """
+<html>
+<head>
+  <title>Elastic Tensor visualization</title>
+  <script type='text/javascript' src='https://www.x3dom.org/download/x3dom.js'> </script>
+  <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/x3dom.css'></link>
+</head>
+<body>
+  <h1>Elastic Tensor visualization</h1>
+  <p>
+  Range goes from {min} to {max}
+  </p>
+  <x3d width='600px' height='600px'>
+  <scene>
+    <viewpoint position='{view} {view} {view}' orientation='{axis[0]} {axis[1]} {axis[2]} {angle}'></viewpoint>
+    <transform translation='{scale} 0 0' rotation='0 0 1 1.5708'>
+    <shape>
+      <appearance>
+      <material diffuseColor='1 0 0'></material>
+      </appearance>
+      <cylinder radius='{radius}' height='{height}'></cylinder>
+    </shape>
+    </transform>
+    <transform translation='0 {scale} 0'>
+    <shape>
+      <appearance>
+      <material diffuseColor='0 1 0'></material>
+      </appearance>
+      <cylinder radius='{radius}' height='{height}'></cylinder>
+    </shape>
+    </transform>
+    <transform translation='0 0 {scale}' rotation='1 0 0 1.5708'>
+    <shape>
+      <appearance>
+      <material diffuseColor='0 0 1'></material>
+      </appearance>
+      <cylinder radius='{radius}' height='{height}'></cylinder>
+    </shape>
+    </transform>
 
-          <IndexedFaceSet solid="false"
-                          convex="true"
-                          colorPerVertex="true"
-                          creaseAngle="0.0"
-                          coordIndex="
+    <shape>
+      <appearance>
+      <material diffuseColor="0.3 0.6 0.2"
+                ambientIntensity="0.167"
+                shininess="0.17"
+                transparency="0.0"
+       />
+      </appearance>
+
+      <IndexedFaceSet solid="false"
+                      convex="true"
+                      colorPerVertex="true"
+                      creaseAngle="0.0"
+                      coordIndex="
   """.format(min=minimum,max=auto,scale=1.5*auto,view=3*auto,axis=ax[:3],angle=ax[3],radius=auto/50.,height=auto)
   ] + \
   [' '.join(map(str,v))+' -1,' for v in connectivity] + \
   [
-  '''
-            ">
-            <coordinate point="
-  '''] + \
+  """
+        ">
+        <coordinate point="
+  """] + \
   [' '.join(map(str,v)) + ', ' for  v in node] + \
-  ['''"></coordinate>
-            <color color="
-  '''
-  ] + \
+  ["""
+        "></coordinate>
+        <color color="
+  """] + \
   ['{} {} {}'.format(*(m.color(fraction=np.linalg.norm(v)/auto).expressAs('RGB').color)) + ', ' for  v in node] + \
   [
-  '''"></color>
+  """
+        "></color>
 
-          </IndexedFaceSet>
-        </shape>
-      </scene>
-    </x3d>
-  </body>
-  </html>
-  ''']
+      </IndexedFaceSet>
+    </shape>
+  </scene>
+  </x3d>
+</body>
+</html>
+    """]
 
-  with open(Path(filename).with_suffix('.html'),'w') as f:
-    f.write('\n'.join(output) + '\n')
+    with open(Path(filename).with_suffix('.html'),'w') as f:
+        f.write('\n'.join(output) + '\n')
 
 
 parser = argparse.ArgumentParser()
@@ -352,8 +418,8 @@ parser.add_argument('--symmetry',
                              'isotropic',
                             ])
 for i in range(6):
-  for j in range(i,6):
-    parser.add_argument(f'--c{i+1}{j+1}', type=float, required=i==0 and j<2)
+    for j in range(i,6):
+        parser.add_argument(f'--c{i+1}{j+1}', type=float, required=i==0 and j<2)
 
 args = parser.parse_args()
 
@@ -383,12 +449,12 @@ S3333 = C66toC3333(inverse66(C66fromSymmetry(c11 = args.c11,
 
 nodeChild = {}
 for i in range(len(node)):
-  nodeChild['{clone}+{clone}'.format(clone=str(i))] = i
+    nodeChild['{clone}+{clone}'.format(clone=str(i))] = i
 
 connectivity = np.vstack([SierpinskySpherical(t,args.recursion) for t in octahedron])
 
 for i,n in enumerate(node):
-  node[i] *= E_hkl3333(S3333,n)
+    node[i] *= E_hkl3333(S3333,n)
 
 {'vtk': vtk_writeData,
  'x3d': x3d_writeData,
