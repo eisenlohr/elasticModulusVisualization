@@ -35,6 +35,8 @@ octahedron = np.array( [
     [ 3, 5, 0 ],
     ] )
 
+def normalize(v):
+   return v/np.linalg.norm(v,axis=-1,keepdims=True)
 
 def iszero(a):
   return np.isclose(a,0.0,atol=1.0e-300,rtol=0.0)
@@ -65,6 +67,43 @@ def om2ax(om):
   return np.array(ax)
 
 
+def Sierpinsky(N=0):
+    """
+    Subdivide a triangle N times.
+
+    Parameters
+    ----------
+    N : int
+        Number of subdivision steps.
+        Defaults to 0.
+
+    Returns
+    -------
+    w : array of float, shape (:,3)
+        Contribution (weight) of the three original triangle vertices to each node,
+        i.e. points = einsum('im,mj',w,vertices)
+    c : array of int, shape (:,3)
+        Connectivity of resulting triangles.
+
+    """
+    n = 1+2**N
+    r = np.arange(n)
+    tril_n  = np.tril(np.ones((n,n),dtype=bool))
+    tril_2n = np.tril(np.ones((2*n,2*n),dtype=bool))
+    k,l = np.meshgrid(r,r,indexing='ij')
+    i,j = k[tril_n],l[tril_n]
+    c = l+np.atleast_2d(np.cumsum(r)).T
+    return (
+       np.array([n-1-i,i-j,j]).T/(n-1),
+       np.array([[c,np.roll(c,-1,axis=0),np.roll(np.roll(c,-1,axis=0),-1,axis=1)],
+                 [c,np.roll(np.roll(c,-1,axis=0),-1,axis=1),np.roll(c,-1,axis=1)],
+                ]).transpose(2,3,0,1).reshape((n,2*n,3))
+                  [:-1]
+                  [np.broadcast_to(np.tril(np.ones((2*n,2*n),dtype=bool))[:-2:2,:,np.newaxis],(n-1,2*n,3))]
+                  .reshape((-1,3))
+    )
+
+
 def inverse66(M66):
     """
     Invert tensor given in Voigt notation.
@@ -91,7 +130,7 @@ def inverse66(M66):
 
 def C66toC3333(stiffness):
     """
-    Expand stiffness tensor from contracted Voigt notation to full rank four representation.
+    Expand stiffness tensor from contracted Voigt notation to full fourth-rank representation.
 
     Parameters
     ----------
@@ -101,20 +140,18 @@ def C66toC3333(stiffness):
     Returns
     -------
     C3333 : numpy.array (3,3,3,3)
-        Rank four stiffness tensor.
+        Fourth-rank stiffness tensor.
 
     """
-    index = np.array([[0,0],[1,1],[2,2,],[1,2],[0,2],[0,1]])
+    index = np.array([[0,0],[1,1],[2,2],[1,2],[0,2],[0,1]])
     C3333 = np.zeros((3,3,3,3))
     for a in range(6):
-      i = index[a][0]
-      j = index[a][1]
+      i,j = index[a]
       for b in range(6):
-        k = index[b][0]
-        l = index[b][1]
-        C3333[i,j,k,l] = stiffness[a,b]
-        C3333[i,j,l,k] = stiffness[a,b]
-        C3333[j,i,k,l] = stiffness[a,b]
+        k,l = index[b]
+        C3333[i,j,k,l] = \
+        C3333[i,j,l,k] = \
+        C3333[j,i,k,l] = \
         C3333[j,i,l,k] = stiffness[a,b]
 
     return C3333
@@ -122,52 +159,7 @@ def C66toC3333(stiffness):
 
 def E_hkl3333(S3333,dir):
 
-    return 1./np.einsum('i,j,k,l,ijkl',dir,dir,dir,dir,S3333)
-
-
-def SierpinskySpherical(t,N):
-    # Subdivide the triangle and normalize the new points
-    # thus generated to lie on the surface of the unit sphere.
-    # input triangle with vertices labeled [0,1,2] as shown
-    # below will be turned into four new triangles:
-    #
-    #            Make new (auto normalized) points
-    #                 a = (0+1)/2
-    #                 b = (1+2)/2
-    #                 c = (2+0)/2
-    #       C=2
-    #       /\
-    #      /  \
-    #    c/____\ b    Construct new triangles
-    #    /\    /\       t1 [0,a,c]
-    #   /  \  /  \      t2 [a,1,b]
-    #  /____\/____\     t3 [c,b,2]
-    # 0=A    a   B=1    t4 [a,b,c]
-
-    if N > 0:
-      a = indexOfChild(t[[0,1]])
-      b = indexOfChild(t[[1,2]])
-      c = indexOfChild(t[[2,0]])
-
-      return np.vstack((
-                        SierpinskySpherical(np.array([    t[0],a,c]),N-1),
-                        SierpinskySpherical(np.array([  a,t[1],b]),  N-1),
-                        SierpinskySpherical(np.array([c,b,t[2]]),    N-1),
-                        SierpinskySpherical(np.array([a,b,c]),       N-1),
-                      ))
-    else:
-      return t
-
-
-def indexOfChild(parents):
-    child = '{}+{}'.format(str(np.min(parents)),str(np.max(parents)))
-    if child not in nodeChild:
-      nodeChild[child] = len(node)                                              # find next highest index
-      node.resize(nodeChild[child]+1,3)                                         # make room for new node
-      node[nodeChild[child]] = np.average(node[parents],axis=0)                 # average of both parents
-      node[nodeChild[child]] /= np.linalg.norm(node[nodeChild[child]])          # normalize to unit sphere
-
-    return nodeChild[child]
+    return 1./np.einsum('...i,...j,...k,...l,ijkl',dir,dir,dir,dir,S3333)
 
 
 def C66fromSymmetry(c11=0.0,c12=0.0,c13=0.0,c14=0.0,c15=0.0,c16=0.0,
@@ -248,7 +240,7 @@ def C66fromSymmetry(c11=0.0,c12=0.0,c13=0.0,c14=0.0,c15=0.0,c16=0.0,
     return C
 
 
-def vtk_writeData(filename):
+def vtk_writeData(filename,coords,connectivity):
     """
     Write a VTK PolyData object of the directional elastic modulus.
 
@@ -256,6 +248,10 @@ def vtk_writeData(filename):
     ----------
     filename : str
         Name of output file. Extension will be replaced by VTK default.
+    coords : array of float, shape (N,3)
+        Coordinates of points.
+    connectivity : array of int, shape (M,3)
+        Node indices per each triangle.
 
     """
     polydata = vtk.vtkPolyData()
@@ -266,7 +262,7 @@ def vtk_writeData(filename):
     magnitude.SetName("E");
 
     points = vtk.vtkPoints()
-    for p in node:
+    for p in coords:
         points.InsertNextPoint(*p)
         magnitude.InsertNextValue(np.linalg.norm(p))
         polydata.GetPointData().AddArray(magnitude)
@@ -285,7 +281,7 @@ def vtk_writeData(filename):
     writer.Write()
 
 
-def x3d_writeData(filename):
+def x3d_writeData(filename,coords,connectivity):
     """
     Write a HTML page that interactively visualizes the directional elastic modulus.
 
@@ -293,6 +289,10 @@ def x3d_writeData(filename):
     ----------
     filename : str
         Name of output file. Extension will be replaced by 'html'.
+    coords : array of float, shape (N,3)
+        Coordinates of points.
+    connectivity : array of int, shape (M,3)
+        Node indices per each triangle.
 
     """
     ax = om2ax(np.array([[-1., 1., 0.],
@@ -300,8 +300,8 @@ def x3d_writeData(filename):
                          [ 1., 1., 1.],
                         ])/np.array([np.sqrt(2.),np.sqrt(6.),np.sqrt(3.)])[:,None])
 
-    auto = np.max(np.linalg.norm(node,axis=1))
-    minimum = np.min(np.linalg.norm(node,axis=1))
+    auto = np.max(np.linalg.norm(coords,axis=-1))
+    minimum = np.min(np.linalg.norm(coords,axis=-1))
 
     m = colormaps.Colormap(predefined=args.colormap)
     if args.invert:
@@ -370,12 +370,12 @@ def x3d_writeData(filename):
         ">
         <coordinate point="
   """] + \
-  [' '.join(map(str,v)) + ', ' for  v in node] + \
+  [' '.join(map(str,v)) + ', ' for  v in coords] + \
   ["""
         "></coordinate>
         <color color="
   """] + \
-  ['{} {} {}'.format(*(m.color(fraction=np.linalg.norm(v)/auto).expressAs('RGB').color)) + ', ' for  v in node] + \
+  ['{} {} {}'.format(*(m.color(fraction=np.linalg.norm(v)/auto).expressAs('RGB').color)) + ', ' for  v in coords] + \
   [
   """
         "></color>
@@ -392,7 +392,7 @@ def x3d_writeData(filename):
         f.write('\n'.join(output) + '\n')
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('format',
                     help='output file format',
                     choices=['vtk','x3d'])
@@ -447,15 +447,14 @@ S3333 = C66toC3333(inverse66(C66fromSymmetry(c11 = args.c11,
                                              symmetry = args.symmetry,
                                             )))
 
-nodeChild = {}
-for i in range(len(node)):
-    nodeChild['{clone}+{clone}'.format(clone=str(i))] = i
+N_faces = len(octahedron)
+weights,c = Sierpinsky(N=args.recursion)
 
-connectivity = np.vstack([SierpinskySpherical(t,args.recursion) for t in octahedron])
-
-for i,n in enumerate(node):
-    node[i] *= E_hkl3333(S3333,n)
+connectivity = (np.broadcast_to(len(weights)*np.arange(N_faces)[:,np.newaxis,np.newaxis],
+                                (N_faces,)+c.shape)+c).reshape((-1,3))
+nodes = normalize(np.einsum('ik,...kj',weights,node[octahedron])).reshape((-1,3))
+nodes *= E_hkl3333(S3333,nodes)[...,np.newaxis]
 
 {'vtk': vtk_writeData,
  'x3d': x3d_writeData,
-}[args.format](args.name)
+}[args.format](args.name,nodes,connectivity)
